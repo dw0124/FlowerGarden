@@ -9,10 +9,4 @@ target 'FlowerGarden' do
   pod 'GoogleSignIn', '5.0.2'
   pod 'NMapsMap'
 
-  post_install do |installer|
-    installer.pods_project.build_configurations.each do |config|
-      config.build_settings['VALID_ARCHS'] = 'arm64, arm64e, x86_64'
-    end
-  end
-
 end

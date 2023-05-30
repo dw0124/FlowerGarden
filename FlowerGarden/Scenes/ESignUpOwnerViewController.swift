@@ -74,10 +74,15 @@ class ESignUpOwnerViewController: UIViewController{
     }
     
     private func showLoginViewController() {
-        let storyboard = UIStoryboard(name: "Main", bundle: Bundle.main)
-        let vc = storyboard.instantiateViewController(withIdentifier: "EmailLogin")
-        vc.modalPresentationStyle = .fullScreen
-        navigationController?.show(vc, sender: nil)
+        
+        guard let ownerImageVC = self.storyboard?.instantiateViewController(withIdentifier: "owenrImage") as? OwnerImageViewController else { return }
+        
+        if let ownerStoreName = storeNameTextField.text {
+            ownerImageVC.ownerStoreName = ownerStoreName
+        }
+        
+        self.navigationController?.pushViewController(ownerImageVC, animated: true)
+    
     }
 }
 
@@ -102,9 +107,9 @@ extension ESignUpOwnerViewController: ZipcodeDelegate {
     
     func sendZipcode(data: Addresses) {
         print("zipcode!")
-        print(data.addresses[0].x)
-        print(data.addresses[0].y)
-        print(data.addresses[0].roadAddress)
+        
+        if data.addresses.isEmpty { return }
+        
         zipcode = data.addresses[0].roadAddress
         storeX = data.addresses[0].x
         storeY = data.addresses[0].y

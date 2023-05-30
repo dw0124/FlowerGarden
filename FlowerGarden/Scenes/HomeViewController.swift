@@ -9,15 +9,15 @@ import UIKit
 import SnapKit
 import FirebaseAuth
 import FirebaseDatabase
+import FirebaseStorage
+import CoreLocation
 
 class HomeViewController: UIViewController {
 
     @IBOutlet weak var bannerCollectionView: UICollectionView!
     @IBOutlet weak var tableView: UITableView!
-    @IBOutlet weak var userWelcome: UILabel!
-    @IBOutlet var scrollView: UIScrollView!
     var ownerList: [Owners] = []
-    
+    var currentCoordinate: CLLocationCoordinate2D?
     var nowPage: Int = 0
     
     let dataArray: Array<UIImage> = [UIImage(named: "Banner_0")!, UIImage(named: "Banner_1")!, UIImage(named: "Banner_2")!]
@@ -25,11 +25,20 @@ class HomeViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        welcomeText()
         setupLayout()
         bannerTimer()
-        MapViewController().dbLoad { owners in
+        
+        saveCurrentCoordinate()
+        
+        MapViewController().dbLoad { [weak self] owners in
+            guard let self = self else { return }
+
             self.ownerList = owners
+            self.calculateDistances()
+            self.ownerList.sort { $0.distance ?? 100000 < $1.distance ?? 100000}
+            
+            print(self.currentCoordinate?.latitude, self.currentCoordinate?.longitude)
+            
             self.tableView.reloadData()
         }
     }
@@ -39,10 +48,11 @@ class HomeViewController: UIViewController {
         
     }
     
+    /*
     private func welcomeText() {
         var ref: DatabaseReference!
         ref = Database.database().reference()
-        
+
         if let userInfo = Auth.auth().currentUser?.providerData[0] {
             let user = Auth.auth().currentUser
             ref.child("user_list/\(user?.uid ?? "userID")/name").getData(completion:  { error, snapshot in
@@ -58,6 +68,7 @@ class HomeViewController: UIViewController {
             userWelcome.text = "OOO 님 환영합니다."
         }
     }
+    */
 }
 
 //MARK: setupLayout
@@ -73,9 +84,8 @@ extension HomeViewController {
         
         tableView.delegate = self
         tableView.dataSource = self
-        
+        tableView.prefetchDataSource = self
         tableView.rowHeight = 90.0
-        
         
     }
 }
@@ -98,11 +108,6 @@ extension HomeViewController: UICollectionViewDataSource {
         cell.imageView.image = dataArray[indexPath.row]
         
         return cell
-    }
-    
-    // CollectioView 2초 이동 후 감속 메서드
-    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        nowPage = Int(scrollView.contentOffset.x) / Int(scrollView.frame.width)
     }
     
     // 3초마다 실행되는 타이머
@@ -144,6 +149,90 @@ extension HomeViewController: UITableViewDataSource {
         cell?.titleLabel.text = ownerList[indexPath.row].store_name
         cell?.addressLabel.text = ownerList[indexPath.row].store_address
         
+        let imageUrlString = "gs://flowergarden-6d59b.appspot.com/\(ownerList[indexPath.row].store_name)"
+        loadImage(imageUrlString) { (image) in
+            DispatchQueue.main.async {
+                cell?.storeImageView.image = image ?? UIImage(systemName: "leaf.circle.fill")
+            }
+        }
+        
         return cell ?? UITableViewCell()
+    }
+    
+}
+
+extension HomeViewController: UITableViewDataSourcePrefetching {
+    func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
+        for indexPath in indexPaths {
+            let cell = tableView.cellForRow(at: indexPath) as? StoreListTableViewCell
+            
+            let imageUrlString = "gs://flowergarden-6d59b.appspot.com/\(ownerList[indexPath.row].store_name)"
+            loadImage(imageUrlString) { (image) in
+                DispatchQueue.main.async {
+                    cell?.storeImageView.image = image ?? UIImage(systemName: "leaf.circle.fill")
+                }
+            }
+        }
+    }
+}
+
+extension HomeViewController {
+    func loadImage(_ imageUrlString: String, completion: @escaping (UIImage?) -> Void) {
+        let cacheKey = NSString(string: imageUrlString)
+        
+        if let cachedImage = ImageCacheManager.shared.object(forKey: cacheKey) {
+            completion(cachedImage)
+            return
+        }
+        
+        let storage = Storage.storage()
+        storage.reference(forURL: imageUrlString).downloadURL { (url, error) in
+            guard let url = url, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            DispatchQueue.global().async {
+                if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                    ImageCacheManager.shared.setObject(image, forKey: cacheKey)
+                    completion(image)
+                } else {
+                    completion(nil)
+                }
+            }
+        }
+    }
+
+    // 현재 좌표 저장
+    func saveCurrentCoordinate() {
+        let locationManager = CLLocationManager()
+        locationManager.requestWhenInUseAuthorization()
+        
+        if CLLocationManager.locationServicesEnabled() {
+            locationManager.startUpdatingLocation()
+            if let currentLocation = locationManager.location {
+                currentCoordinate = currentLocation.coordinate
+            }
+        }
+    }
+    
+    // 가게 거리계산
+    func calculateDistances() {
+        print("#1", #function)
+        
+        guard let currentCoordinate = currentCoordinate else {
+            return
+        }
+        
+        print("#2", #function)
+        
+        for index in 0..<ownerList.count {
+            let currentLocation = CLLocation(latitude: currentCoordinate.latitude, longitude: currentCoordinate.longitude)
+            let dataLocation = CLLocation(latitude: Double(ownerList[index].y)!, longitude: Double(ownerList[index].x)!)
+            
+            let distance = currentLocation.distance(from: dataLocation)
+            print(ownerList[index].x, ownerList[index].y, distance)
+            ownerList[index].distance = distance
+        }
     }
 }

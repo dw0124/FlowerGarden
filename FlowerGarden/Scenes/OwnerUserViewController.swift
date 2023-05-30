@@ -10,16 +10,16 @@ import UIKit
 
 class OwnerUserViewController: UIViewController {
 
-    @IBOutlet weak var userLoginButton: UIButton!
-    @IBOutlet weak var ownerLoginButton: UIButton!
+    @IBOutlet weak var userLoginButton: UIButton?
+    @IBOutlet weak var ownerLoginButton: UIButton?
     
     var owner: Bool = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        userLoginButton.layer.cornerRadius = 25
-        ownerLoginButton.layer.cornerRadius = 25
+        userLoginButton?.layer.cornerRadius = 25
+        ownerLoginButton?.layer.cornerRadius = 25
         // Do any additional setup after loading the view.
     }
     

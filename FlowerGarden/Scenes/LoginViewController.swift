@@ -12,7 +12,6 @@ class LoginViewController: UIViewController {
     
     @IBOutlet weak var emailLoginButton: UIButton!
     @IBOutlet weak var googleLoginButton: GIDSignInButton!
-    @IBOutlet weak var appleLoginButton: UIButton!
     
     static var onwer: Bool = false
     

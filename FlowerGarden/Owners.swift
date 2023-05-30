@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreLocation
 
 struct Owners: Codable {
     
@@ -17,6 +18,7 @@ struct Owners: Codable {
     let store_number: String
     let x: String
     let y: String
+    var distance: Double?
     
     init(email: String = "", name: String = "", store_name: String = "", store_address: String = "", store_number:String = "", uid: String = "", x: String = "", y: String = "") {
         self.email = email
